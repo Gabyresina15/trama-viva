@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { PieceRecord, SupportReceiptRecord, stroopsToUsdcString } from "@/lib/types/trama";
 
 interface ReceiptApiResponse {
@@ -26,7 +26,7 @@ interface ReceiptApiResponse {
   error?: string;
 }
 
-export default function ReceiptVerificationPage() {
+function ReceiptVerificationInner() {
   const params = useParams<{ hash: string }>();
   const txHash = params?.hash || "";
 
@@ -216,5 +216,19 @@ export default function ReceiptVerificationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ReceiptVerificationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-[#6B5B4E]">
+          Verificando recibo y recalculando huella SHA-256…
+        </div>
+      }
+    >
+      <ReceiptVerificationInner />
+    </Suspense>
   );
 }

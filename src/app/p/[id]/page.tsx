@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import {
   PieceRecord,
   SPLIT_PRESETS,
@@ -13,7 +13,7 @@ type LangTab = "es" | "en" | "pt";
 
 const AMOUNT_OPTIONS = [2, 5, 10];
 
-export default function PiecePublicPage() {
+function PiecePublicInner() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const pieceId = (params?.id || "").toLowerCase();
@@ -406,5 +406,19 @@ export default function PiecePublicPage() {
         </div>
       </article>
     </div>
+  );
+}
+
+export default function PiecePublicPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-[#6B5B4E]">
+          Cargando relato de la pieza…
+        </div>
+      }
+    >
+      <PiecePublicInner />
+    </Suspense>
   );
 }

@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import {
   claimArtisanBridge,
   getArtisanPendingBalanceBridge,
 } from "@/lib/bridge/chain";
 
 export async function GET() {
+  await connection();
   const status = await getArtisanPendingBalanceBridge();
   return NextResponse.json({ status });
 }

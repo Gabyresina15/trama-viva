@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { connection, NextRequest, NextResponse } from "next/server";
 import { extractCulturalPassport } from "@/lib/ai/passport";
 import { registerPieceBridge } from "@/lib/bridge/chain";
 import { listPieces, savePieceWithMedia } from "@/lib/store/pieces-store";
@@ -28,6 +28,7 @@ function extFromMime(mime: string, fallback: string): string {
 }
 
 export async function GET() {
+  await connection();
   const pieces = await listPieces();
   return NextResponse.json({ pieces });
 }
