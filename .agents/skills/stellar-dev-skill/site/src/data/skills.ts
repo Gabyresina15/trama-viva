@@ -1,0 +1,562 @@
+/**
+ * Static content for the Stellar Skills landing page.
+ *
+ * Each entry in SKILL_CARD_SOURCES points at a markdown file in
+ * stellar/stellar-dev-skill (via `source`). At build time we copy that
+ * file to public/<source>, so it's served at the same path on
+ * skills.stellar.org. Title and description default to the upstream
+ * SKILL.md's frontmatter `description` and first `# heading`; override
+ * them here when you want to tune the landing-page voice.
+ */
+
+/**
+ * Categories used by `FILTERS` and by each card's `category`. Kept local
+ * because nothing outside this file needs it: `SkillsFilter` takes any
+ * `readonly string[]`, and consumers reference `FILTERS` directly.
+ */
+type FilterType =
+  | "All"
+  | "Agentic Payments"
+  | "Smart Contracts"
+  | "Frontend"
+  | "Assets"
+  | "APIs"
+  | "ZK"
+  | "Cross-Chain"
+  | "Ecosystem";
+
+/**
+ * Filter tabs displayed above the skill cards. The order here is the order
+ * shown in the UI.
+ */
+export const FILTERS: readonly FilterType[] = [
+  "All",
+  "Smart Contracts",
+  "Agentic Payments",
+  "Frontend",
+  "Assets",
+  "APIs",
+  "ZK",
+  "Cross-Chain",
+  "Ecosystem",
+] as const;
+
+/**
+ * A skill entry mirrored from stellar/stellar-dev-skill. `source` is the
+ * upstream path; the site path and fetch destination are both derived
+ * from it. `title` and `description` are optional — the page falls back
+ * to upstream metadata when they're omitted.
+ */
+export type SkillCardSource = {
+  /** Upstream path, e.g. "skills/smart-contracts/SKILL.md". Forms both the
+   *  fetch source and the site URL ("/" + source). */
+  source: string;
+  category: FilterType;
+  /** Optional title override; defaults to the first H1 of the markdown. */
+  title?: string;
+  /** Optional short summary used on the landing card (keep to ~2 lines
+   *  so cards stay scannable). llms.txt always prefers the upstream
+   *  frontmatter `description` over this; this value is the fallback
+   *  there. */
+  description?: string;
+};
+
+/**
+ * An ecosystem-contributed skill. Unlike SkillCardSource, these point at
+ * fully-qualified external URLs (typically GitHub) and are displayed
+ * verbatim.
+ */
+export type EcosystemCardSource = {
+  title: string;
+  description: string;
+  /** Display label for the link (shorter than the full URL). */
+  pathLabel: string;
+  /** Full URL copied to clipboard when the user clicks the pill. */
+  copyValue: string;
+};
+
+/**
+ * Skills mirrored from stellar/stellar-dev-skill. One entry per upstream
+ * SKILL.md.
+ */
+export const SKILL_CARD_SOURCES: readonly SkillCardSource[] = [
+  {
+    source: "skills/smart-contracts/SKILL.md",
+    category: "Smart Contracts",
+    title: "Stellar Smart Contracts",
+    description:
+      "Write, test, secure, and ship Rust smart contracts on Stellar. Covers patterns, pitfalls, and architecture.",
+  },
+  {
+    source: "skills/dapp/SKILL.md",
+    category: "Frontend",
+    title: "Frontend & Wallets",
+    description:
+      "Build Stellar dApps with the JavaScript SDK, Varial, Wallets Kit, and passkey smart accounts.",
+  },
+  {
+    source: "skills/assets/SKILL.md",
+    category: "Assets",
+    title: "Stellar Assets & SAC",
+    description:
+      "Issue and manage classic Stellar assets and trustlines, with the SAC bridge for smart contract interop.",
+  },
+  {
+    source: "skills/data/SKILL.md",
+    category: "APIs",
+    title: "RPC & Horizon APIs",
+    description:
+      "Query Stellar chain data with RPC (preferred) and Horizon (legacy). Covers streaming, indexing, and migration.",
+  },
+  {
+    source: "skills/agentic-payments/SKILL.md",
+    category: "Agentic Payments",
+    title: "Agent Payments (x402 + MPP)",
+    description:
+      "Charge AI agents for API calls with x402 paywalls or MPP sessions settled over payment channels.",
+  },
+  {
+    source: "skills/zk-proofs/SKILL.md",
+    category: "ZK",
+    title: "ZK Proofs",
+    description:
+      "Verify Groth16 and UltraHonk proofs on-chain via BLS12-381 and BN254, with Circom, Noir, and RISC Zero toolchain walkthroughs.",
+  },
+  {
+    source: "skills/standards/SKILL.md",
+    category: "Ecosystem",
+    title: "SEPs, CAPs & Ecosystem",
+    description:
+      "Pick the right SEP or CAP for your feature, with ecosystem projects, curated reference links, and MCPs.",
+  },
+  {
+    source: "skills/cross-chain/SKILL.md",
+    category: "Cross-Chain",
+    title: "Cross-Chain (CCTP, Axelar, LayerZero)",
+    description:
+      "Bridge native USDC with Circle CCTP and native USDT with USDT0, pass messages and tokens with Axelar GMP/ITS and LayerZero OApp/OFT, and route intent-based swaps with NEAR Intents.",
+  },
+] as const;
+
+/**
+ * Community-contributed skills hosted on third-party sites (e.g. GitHub).
+ * Displayed in the "Community skills" section at the bottom of the page.
+ * Kept in merge order; append new entries at the end. Consumers read the
+ * sorted `ECOSYSTEM_CARDS` below.
+ */
+const ECOSYSTEM_CARD_SOURCES: readonly EcosystemCardSource[] = [
+  {
+    title: "OpenZeppelin Contracts",
+    description:
+      "Scaffold a Stellar smart contract project with OpenZeppelin's audited Stellar contract libraries. Walks through Rust toolchain setup, Stellar CLI install, workspace dependencies, and applying the pausable and ownable macros to your contract.",
+    pathLabel: "OpenZeppelin/openzeppelin-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-skills/main/skills/setup-stellar-contracts/SKILL.md",
+  },
+  {
+    title: "DeFindex SDK",
+    description:
+      "Integrate DeFindex vaults on Stellar with the @defindex/sdk TypeScript package. Covers vault deposits and withdrawals, balance and APY queries, programmatic vault creation, and the unsigned-XDR signing pattern for backend and bot integrations.",
+    pathLabel: "paltalabs/defindex-sdk",
+    copyValue:
+      "https://raw.githubusercontent.com/paltalabs/defindex-sdk/main/defindex-sdk-skill.md",
+  },
+  {
+    title: "Soroswap SDK",
+    description:
+      "Trade on Soroswap DEX from a backend, bot, or swap widget using the @soroswap/sdk TypeScript package. Covers token swaps, liquidity pool operations, price and route queries, API key handling, and signing flows for both server keypairs and browser wallets.",
+    pathLabel: "soroswap/sdk",
+    copyValue: "https://raw.githubusercontent.com/soroswap/sdk/main/soroswap-sdk-skill.md",
+  },
+  {
+    title: "SODAX",
+    description:
+      "Build cross-network trading, lending, and asset transfers between Stellar and 20+ other networks with the @sodax/sdk TypeScript package. Covers intent quotes and status polling, Stellar trustline handling on source and destination, sponsored activation for new 0-XLM accounts, dapp-kit React hooks, and the Result error model.",
+    pathLabel: "sodax.com/skill.md",
+    copyValue: "https://www.sodax.com/skill.md",
+  },
+  {
+    title: "Trustless Work Escrow",
+    description:
+      "Build escrow and milestone-based payment workflows on Stellar with the Trustless Work platform. Covers single-release and multi-release escrows, trustline configuration, dispute handling, and three integration paths: REST API, React SDK hooks, and pre-built Blocks UI components.",
+    pathLabel: "Trustless-Work/trustlesswork-skill",
+    copyValue:
+      "https://raw.githubusercontent.com/Trustless-Work/trustlesswork-skill/main/trustless-work-dev/SKILL.md",
+  },
+  {
+    title: "Agent Browser WebAuthn",
+    description:
+      "Drive passkey and Stellar smart account browser tests with agent-browser and Chrome DevTools virtual WebAuthn authenticators.",
+    pathLabel: "kalepail/skills",
+    copyValue:
+      "https://raw.githubusercontent.com/kalepail/skills/main/skills/agent-browser-webauthn/SKILL.md",
+  },
+  {
+    title: "Anchors",
+    description:
+      "Integrate with or build Stellar anchors (fiat on/off-ramps, deposits/withdrawals, KYC). Covers core SEP flows (1/6/10/12/24/31/38) and common integration pitfalls.",
+    pathLabel: "CheesecakeLabs/stellar-anchor-skill",
+    copyValue:
+      "https://raw.githubusercontent.com/CheesecakeLabs/stellar-anchor-skill/main/SKILL.md",
+  },
+  {
+    title: "Eunomia Bounded Agent Treasury",
+    description:
+      "Give an AI agent a non-custodial, contract-bounded spending account on Stellar with Eunomia (formerly PRISM). Covers treasury deployment with per-payment and rolling daily limits, payee whitelists, time-bound agent session keys, escrow, x402-gated payments, and Groth16/BN254 ZK compliance proofs verified on-chain.",
+    pathLabel: "eunomia-finance/eunomia",
+    copyValue: "https://raw.githubusercontent.com/eunomia-finance/eunomia/main/SKILL.md",
+  },
+  {
+    title: "ROZO Intents",
+    description:
+      "Send USDC and USDT across Stellar, Ethereum, Arbitrum, Base, BSC, Polygon, and Solana using natural language. Covers cross-chain bridging, wallet detection, fee estimation, tiered confirmation logic, and QR code payment parsing inside Claude Code.",
+    pathLabel: "RozoAI/rozo-intents-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/RozoAI/rozo-intents-skills/main/SKILL.md",
+  },
+  {
+    title: "Caatinga",
+    description:
+      "Deploy and manage Soroban contract lifecycles with the Caatinga CLI (ctg). Covers the init → doctor → build → deploy → generate → invoke workflow, the multi-contract Deployment Graph, versioned caatinga.artifacts.json as the source of truth for contract IDs, generated TypeScript bindings, and wallet adapters (Freighter, Stellar Wallets Kit) — with hard rules against raw secret keys on the command line and hand-edited artifacts or bindings.",
+    pathLabel: "Dione-b/caatinga-skill",
+    copyValue:
+      "https://raw.githubusercontent.com/Dione-b/caatinga-skill/master/skills/caatinga/SKILL.md",
+  },
+  {
+    title: "Sozu Testnet USDC Faucet",
+    description:
+      "Claim Circle USDC on Stellar testnet with a PoW-gated CLI, using an existing C…/G… address or a newly generated G… wallet with a USDC trustline.",
+    pathLabel: "blessedux/agent-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/blessedux/agent-skills/main/sozu-faucet/SKILL.md",
+  },
+  {
+    title: "LumenLoop MCP Connect",
+    description:
+      "Connect any MCP client (Claude, ChatGPT, Gemini, Cursor) to LumenLoop's free read-only Stellar ecosystem MCP and learn its query tools for directory, content, and SCF data.",
+    pathLabel: "lumenloop/lumenloop-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/lumenloop/lumenloop-skills/main/skills/lumenloop-mcp-connect/SKILL.md",
+  },
+  {
+    title: "SCF Submission Radar",
+    description:
+      "Position a Stellar Community Fund idea against prior submissions before applying: find similar past proposals, check what's been funded in an area, and sharpen positioning.",
+    pathLabel: "lumenloop/lumenloop-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/lumenloop/lumenloop-skills/main/skills/scf-submission-radar/SKILL.md",
+  },
+  {
+    title: "Stellar Builder Quickstart",
+    description:
+      "Go from a Stellar product idea to a build path: pick the right primitives, check ecosystem prior art via LumenLoop, and route to the relevant build skill.",
+    pathLabel: "lumenloop/lumenloop-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/lumenloop/lumenloop-skills/main/skills/stellar-builder-quickstart/SKILL.md",
+  },
+  {
+    title: "Stellar Content Auditor",
+    description:
+      "Audit draft posts and announcements against Stellar ecosystem data: resolve project names and X handles, pull supporting citations, and flag unsupported claims.",
+    pathLabel: "lumenloop/lumenloop-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/lumenloop/lumenloop-skills/main/skills/stellar-content-auditor/SKILL.md",
+  },
+  {
+    title: "Stellar Ecosystem Digest",
+    description:
+      "Produce a dated, cited digest of recent Stellar ecosystem activity on a theme or entity from indexed news, talks, events, and research.",
+    pathLabel: "lumenloop/lumenloop-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/lumenloop/lumenloop-skills/main/skills/stellar-ecosystem-digest/SKILL.md",
+  },
+  {
+    title: "Stellar Ecosystem Scout",
+    description:
+      "Map a sector of the Stellar ecosystem into a landscape of projects, categories, and regions using the LumenLoop directory and semantic search.",
+    pathLabel: "lumenloop/lumenloop-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/lumenloop/lumenloop-skills/main/skills/stellar-ecosystem-scout/SKILL.md",
+  },
+  {
+    title: "Stellar Integration Finder",
+    description:
+      "Find the right existing Stellar project or tool to integrate (wallet, oracle, anchor, DEX, indexer) via the LumenLoop directory, then route to the matching build skill.",
+    pathLabel: "lumenloop/lumenloop-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/lumenloop/lumenloop-skills/main/skills/stellar-integration-finder/SKILL.md",
+  },
+  {
+    title: "Stellar Project Dossier",
+    description:
+      "Build a due-diligence profile of a single Stellar project: details, related content, talks, SCF history, and similar projects from the LumenLoop directory.",
+    pathLabel: "lumenloop/lumenloop-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/lumenloop/lumenloop-skills/main/skills/stellar-project-dossier/SKILL.md",
+  },
+  {
+    title: "Stellar Scout",
+    description:
+      "Scout the Stellar ecosystem before you build: validate ideas against shipped projects, match open SCF-funded RFPs, draft SCF pitches, find audit firms, and pull cited prior art from 2,000+ indexed repos.",
+    pathLabel: "stellarlight.xyz/scout",
+    copyValue: "https://stellarlight.xyz/skills/stellar-scout.md",
+  },
+  {
+    title: "Sub Rosa",
+    description:
+      "Integrate sealed coordination into Stellar apps with @sub-rosa/sdk: run sealed-bid asset auctions with SAC escrow and atomic lot settlement, confidential proposal rounds, Drand-timed reveal, permissionless lifecycle automation, and verifiable Core v2 receipts.",
+    pathLabel: "karagozemin/Sub-Rosa",
+    copyValue:
+      "https://raw.githubusercontent.com/karagozemin/Sub-Rosa/main/skills/sub-rosa/SKILL.md",
+  },
+  {
+    title: "ROZO Checkout",
+    description:
+      "Pay for AI services with Stellar USDC — e.g. OpenRouter and Venice.ai, which cannot take Stellar directly — through a one-time deposit order and automatic invoice settlement. More AI services coming.",
+    pathLabel: "RozoAI/rozo-checkout-skill",
+    copyValue:
+      "https://raw.githubusercontent.com/RozoAI/rozo-checkout-skill/main/SKILL.md",
+  },
+  {
+    title: "MPP Discover",
+    description:
+      "Find and pay APIs from 90+ services with Stellar USDC through MPP Router — including OpenAI, Anthropic, DeepSeek, Perplexity, Exa, Firecrawl, and Tavily. An agent fetches the live service catalog, picks a service, and settles per request. Every verified service is backed by a real paid call with a published Stellar transaction hash.",
+    pathLabel: "mpprouter/stellar-agent-wallet-skill",
+    copyValue:
+      "https://raw.githubusercontent.com/mpprouter/stellar-agent-wallet-skill/main/skills/discover/SKILL.md",
+  },
+  {
+    title: "Stellar Agent Search",
+    description:
+      "Read-only, keyless MCP server that lets an AI agent discover, rank, and vet on-chain Stellar 8004 agents on mainnet by natural-language query, stopping before any payment or signing.",
+    pathLabel: "berkingurcan/stellar-agent-search",
+    copyValue:
+      "https://raw.githubusercontent.com/berkingurcan/stellar-agent-search/main/skills/mcp/SKILL.md",
+  },
+  {
+    title: "Cogladius",
+    description:
+      "Register an AI agent to earn XLM by completing on-chain tasks: one-call permissionless registration, task polling, solution submission, and payout from a non-custodial Soroban escrow on an ed25519-verified judge verdict.",
+    pathLabel: "furkanyesildag/cogladius",
+    copyValue:
+      "https://raw.githubusercontent.com/furkanyesildag/cogladius/main/SKILL.md",
+  },
+  {
+    title: "Soroban Common Mistakes",
+    description:
+      "Review Soroban contracts against 23 recurring security mistakes before shipping: missing authorization, storage and TTL pitfalls, arithmetic overflow, and unsafe panic handling. Ships with a reviewable checklist, a PR template, and a Scout CI workflow. Available in English and Spanish.",
+    pathLabel: "mariaelisaaraya/stellar-security-guide",
+    copyValue:
+      "https://raw.githubusercontent.com/mariaelisaaraya/stellar-security-guide/main/skills/soroban-common-mistakes/SKILL.md",
+  },
+  {
+    title: "StellarTools",
+    description:
+      "Stripe-level payment infrastructure for Stellar. Accept crypto and fiat payments with hosted checkouts, Soroban-powered subscriptions with flexible billing periods, customer portals, and normalized webhooks. Includes WooCommerce and Shopify adapters, an apps marketplace, and an MCP server for agent-driven payment management. ⁠",
+    pathLabel: "payrouteshq/stellartools",
+    copyValue: "https://raw.githubusercontent.com/payrouteshq/stellartools/main/SKILL.md",
+  },
+  {
+    title: "Nirium Agentic Payments",
+    description:
+      "Charge AI agents per API call on Stellar with the Nirium toolkit: scaffold a working x402 seller with nirium-cli in one command, charge per route with x402Serve() from the nirium SDK, and read live protocol data, market state, autonomous loop status, and execution nodes through the nirium-mcp server. Live on mainnet since July 9, 2026.",
+    pathLabel: "nirium-protocol/nirium",
+    copyValue:
+      "https://raw.githubusercontent.com/nirium-protocol/nirium/main/skills/nirium-agentic-payments/SKILL.md",
+  },
+  {
+    title: "Contextio SDK",
+    description:
+      "Integrate contextio-sdk: verifiable, non-custodial legal context binding (Legal Context Protocol / LCP) for Stellar treasury and payroll. Covers Sign In With Stellar (SEP-53) wallet auth, reading a tenant's treasury/payroll/agent state, triggering an agent proposal, and independently hashing/verifying an LCP document against an on-chain hash.",
+    pathLabel: "Eras256/Contextio",
+    copyValue:
+      "https://raw.githubusercontent.com/Eras256/Contextio/main/packages/sdk/SKILL.md",
+  },
+  {
+    title: "PMLL",
+    description:
+      "Gives AI agents persistent spatial memory so they can retain long-term context, form symbiotic memory layers, and maintain durable state across sessions; supports PPM-based context stitching, Context+ pipelines, and supermodeltools/cli for graphing and analysis. On-chain commitment anchoring on Stellar (32-byte hashes via a Soroban contract) is planned.",
+    pathLabel: "drQedwards/pmll",
+    copyValue: "https://raw.githubusercontent.com/drQedwards/pmll/main/SKILL.md",
+  },
+  {
+    title: "Pollar Wallets & Fiat Ramps",
+    description:
+      "Add embedded Stellar wallets and local fiat on/off-ramps to a web or React Native app with @pollar/core and @pollar/react. Users sign in with email, social or a passkey and get a funded account with no seed phrase. Covers ramp quotes and country availability, the custodial and external signing paths, payments, sponsored (gasless) activation and trustlines, multi-venue swaps, and SEP-53 / SEP-10 ownership proofs.",
+    pathLabel: "pollar-xyz/pollar",
+    copyValue:
+      "https://raw.githubusercontent.com/pollar-xyz/pollar/main/skills/pollar-wallet-auth/SKILL.md",
+  },
+  {
+    title: "Stellar Registry",
+    description:
+      "Publish, deploy, and reuse named Soroban contracts through the Stellar Registry. Covers the `stellar registry` CLI (publish, deploy, create-alias, upgrade), the open `unverified/` channel for hackathon projects, and the `import_contract!`, `import_contract_client!`, and `import_asset!` macros for type-safe cross-contract calls to registry contracts, XLM, and other Stellar assets.",
+    pathLabel: "stellar-registry/cli",
+    copyValue:
+      "https://raw.githubusercontent.com/stellar-registry/cli/main/skills/stellar-registry/SKILL.md",
+  },
+  {
+    title: "Scopuly Wallet",
+    description:
+      "Connect Stellar dApps to Scopuly Mobile and its paired browser extension using the Provider API or Stellar Wallets Kit. Covers transaction signing, SEP-53 messages, Soroban authorization, account and network changes, and error handling.",
+    pathLabel: "Scopuly/scopuly-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/Scopuly/scopuly-skills/main/skills/scopuly-wallet/SKILL.md",
+  },
+  {
+    title: "Blux",
+    description:
+      "Bring Web2 users to Stellar with passkey, OAuth, email, or wallet login. Customize the UI, then use wagmi-style React hooks and JavaScript functions to read balances, call Soroban contracts, and send transactions.",
+    pathLabel: "docs.blux.cc/SKILLS.md",
+    copyValue: "https://docs.blux.cc/SKILLS.md",
+  },
+  {
+    title: "Wasit",
+    description:
+      "Protocol-compliance testing for x402 and MPP on Stellar. Runs the real payment flow against a live service, then verifies settlement independently on Stellar RPC from the token contract's own transfer event rather than the service's own response. Ships as a CLI and an MCP server, with every check mapped to a written spec clause in a published catalogue.",
+    pathLabel: "wasit-dev/wasit",
+    copyValue:
+      "https://raw.githubusercontent.com/wasit-dev/wasit/main/skills/wasit/SKILL.md",
+  },
+  {
+    title: "CosmosPay",
+    description:
+      "Integrate Stellar checkout and wallet flows with @cosmosapp/pay_sdk. Covers SEP-7 payment intents, browser wallet approval, server-side transaction validation, signed webhooks, and secure patterns for swaps, liquidity and fiat ramps.",
+    pathLabel: "CosmosPay/cosmospay-skill",
+    copyValue:
+      "https://raw.githubusercontent.com/CosmosPay/cosmospay-skill/main/SKILL.md",
+  },
+  {
+    title: "XOXNO Lending & Borrowing",
+    description:
+      "Integrate XOXNO Lending on Stellar from a contract, dApp, backend, or bot. Covers supply, borrow, repay, withdraw, and leverage through the controller, position NFT accounts, liquidations, flash loans, aggregator swaps, and the REST and quote APIs.",
+    pathLabel: "XOXNO/rs-lending-xlm",
+    copyValue:
+      "https://raw.githubusercontent.com/XOXNO/rs-lending-xlm/main/skills/xoxno-lending/SKILL.md",
+  },
+  {
+    title: "Stellar Prices API",
+    description:
+      "Get USD and XLM prices for classic and Soroban assets without computing them from Horizon trades: prices across SDEX, Soroswap, Aquarius, Phoenix and SushiSwap with a 24h cross-venue VWAP, OHLCV candles, Reflector oracle readings and 100-asset batch lookups. Free API key via Discord.",
+    pathLabel: "rumblefishdev/stellar-prices-api",
+    copyValue:
+      "https://raw.githubusercontent.com/rumblefishdev/stellar-prices-api/master/skills/stellar-prices-api/SKILL.md",
+  },
+  {
+    title: "Cryptography Research Framing",
+    description:
+      "Turn a rough cryptography idea into a precise research question. Separates facts, assumptions, and conjectures, and proposes definitions, candidate lemmas, constructions, counterexamples, or obstructions as the next mathematical step.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/research/crypto-research-framing/SKILL.md",
+  },
+  {
+    title: "Cryptography Literature Evidence",
+    description:
+      "Find and verify primary-source cryptography claims with exact source locators. Covers citation checks, comparison of paper versions, and literature surveys that rely on the paper itself, not search snippets or summaries.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/research/crypto-literature-evidence/SKILL.md",
+  },
+  {
+    title: "Crypto Proof Auditor",
+    description:
+      "Audit or complete cryptographic proofs, reductions, simulators, and security theorems. Checks that the conclusion follows from the stated definition, model, and assumptions, and flags gaps instead of hiding them with new assumptions.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/research/crypto-proof-auditor/SKILL.md",
+  },
+  {
+    title: "Cryptographic Correlation Accounting",
+    description:
+      "Define and compare correlation counts, PCG expansion ratios, and throughput units by algebraic relation, domain, grouping, and denominator. Use when lanes, entries, blocks, or correlation rates are ambiguous.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/research/crypto-correlation-accounting/SKILL.md",
+  },
+  {
+    title: "Cryptography Writing",
+    description:
+      "Draft or minimally edit cryptography manuscripts: definitions, theorem statements, security arguments, abstracts, and technical overviews. Presents simulation proofs as a simulator plus named hybrids and keeps the construction and guarantee unchanged.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/writing/cryptography-writing/SKILL.md",
+  },
+  {
+    title: "Crypto Prior-Work Comparison",
+    description:
+      "Draft or review prior-work comparisons and comparison tables in cryptography papers. Aligns models, construction variants, costs, and evidence so each claimed improvement states its conditions and its cost.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/writing/crypto-prior-work-comparison/SKILL.md",
+  },
+  {
+    title: "Crypto Implementation Evaluation Writing",
+    description:
+      "Draft, revise, or review implementation and evaluation sections from code and experimental results. Covers supported performance claims, fair comparisons, setup and amortization, and missing evidence.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/writing/crypto-implementation-evaluation-writing/SKILL.md",
+  },
+  {
+    title: "Cryptography Manuscript QA",
+    description:
+      "Check cryptography manuscript sources, LaTeX builds, PDF page locations, references, layout, and paper-to-code consistency. Resolves the active include graph and requested version before citing pages or editing.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/writing/crypto-manuscript-qa/SKILL.md",
+  },
+  {
+    title: "Cryptography AI Acknowledgements",
+    description:
+      "Draft or review AI-use disclosures in cryptography papers from the actual record of assistance and human checking. Separates research, writing, code, experiments, and formalization, and does not certify proofs or infer AI use.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/writing/crypto-ai-acknowledgements/SKILL.md",
+  },
+  {
+    title: "Cryptographic Protocol Implementation",
+    description:
+      "Implement, optimize, reproduce, or review cryptographic protocol code against its specification. Covers circuit, transcript, state, sampler, and adapter fidelity, plus the security obligations that code changes affect, with MPC and ZK optimization guides.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/implementation/crypto-protocol-implementation/SKILL.md",
+  },
+  {
+    title: "Cryptography Benchmarking",
+    description:
+      "Design, run, or audit cryptographic experiments with explicit timing, communication, memory, and statistical accounting. Defines the measured object, operations, units, and hardware before results go into tables.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/implementation/crypto-benchmarking/SKILL.md",
+  },
+  {
+    title: "Cryptography Research Artifacts",
+    description:
+      "Prepare, document, anonymize, validate, and package cryptography research artifacts for reviewers. Builds claim-to-command maps and validates the release from a fresh extraction.",
+    pathLabel: "ziyang-theory/cryptography-research-skills",
+    copyValue:
+      "https://raw.githubusercontent.com/ziyang-theory/cryptography-research-skills/main/implementation/crypto-research-artifacts/SKILL.md",
+  },
+  {
+    title: "Cavos",
+    description:
+      "Add embedded Stellar wallets to a web or React Native app with @cavos/kit. Users sign in with Google, Apple, GitHub, Telegram, or an email code and get a classic G account with no seed phrase. Covers the React provider, sponsored reserves and fees, XLM payments, trustlines, Soroban calls, signing backend-built XDR, and device restore.",
+    pathLabel: "cavos-labs/kit",
+    copyValue:
+      "https://raw.githubusercontent.com/cavos-labs/kit/main/skills/cavos-stellar/SKILL.md",
+  },
+  {
+    title: "RELAY Task Market",
+    description:
+      "Connect an agent to a Stellar task marketplace with wallet-signed encrypted sessions. Start with a no-funding read-only trial, then define scoped requests, negotiate offers, and inspect direct XLM settlement.",
+    pathLabel: "yssoft-gif/relay-agent-client",
+    copyValue:
+      "https://raw.githubusercontent.com/yssoft-gif/relay-agent-client/c4bae7df04dbe99b23b1b071b4ef0ad0a7b65584/SKILL.md",
+  },
+] as const;
+
+/** `ECOSYSTEM_CARD_SOURCES` sorted by title, case-insensitive. */
+export const ECOSYSTEM_CARDS: readonly EcosystemCardSource[] = [
+  ...ECOSYSTEM_CARD_SOURCES,
+].sort((a, b) => a.title.localeCompare(b.title, "en", { sensitivity: "base" }));

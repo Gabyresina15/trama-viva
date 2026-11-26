@@ -1,0 +1,50 @@
+{
+  "name": "stellar-skills-site",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "sync:skills": "node scripts/copy-skills.mjs",
+    "generate:llms-txt": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/generate-llms-txt.mjs",
+    "check:ecosystem-links": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-ecosystem-links.mjs",
+    "test:ecosystem-links": "node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test scripts/check-ecosystem-links.test.mjs src/lib/ecosystem-source-url.test.mjs",
+    "predev": "node scripts/copy-skills.mjs --cached --lenient && pnpm generate:llms-txt",
+    "dev": "next dev",
+    "prebuild": "node scripts/copy-skills.mjs && pnpm generate:llms-txt",
+    "build": "next build",
+    "lint": "eslint .",
+    "lint:ts": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@next/third-parties": "^16.3.8",
+    "@stellar/design-system": "^3.2.7",
+    "next": "16.4.5",
+    "react": "^19.2.2",
+    "react-dom": "^19.2.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@types/node": "^24.1.0",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "eslint": "^9.32.0",
+    "eslint-config-next": "16.3.8",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.5.3",
+    "sass": "^1.86.3",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@10.15.1",
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@1": "^1.1.16",
+      "brace-expansion@5": "^5.0.7",
+      "immutable": "^5.1.8",
+      "js-yaml": "^4.3.2",
+      "postcss": "^8.5.23"
+    }
+  }
+}
