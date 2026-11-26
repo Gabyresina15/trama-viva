@@ -62,7 +62,7 @@ Consultamos **Stellar Raven** para evaluar si convenía resolver el reparto medi
 
 ## 5. Evidencia en Stellar Testnet y Enlaces de Entrega
 
-- **Aplicación en vivo (Testnet):** *(completar URL pública de Vercel)*
+- **Aplicación en vivo (Testnet):** [`https://trama-viva-cjwf.vercel.app/`](https://trama-viva-cjwf.vercel.app/)
 - **Video de demostración (2–3 min, público):** *(completar URL de YouTube / Loom)*
 - **Contrato Soroban desplegado en Testnet (`TramaVivaContract`):**
   [`CDK6FDRZK5TQ544VDDXFPWXC3OEPXI2RQFA2MMASYIDVFKHG3YLSYIDR`](https://stellar.expert/explorer/testnet/contract/CDK6FDRZK5TQ544VDDXFPWXC3OEPXI2RQFA2MMASYIDVFKHG3YLSYIDR)
