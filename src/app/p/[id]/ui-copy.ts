@@ -26,6 +26,7 @@ type UiCopy = {
   translationNote: string;
   shareGift: string;
   giftMessage: string;
+  giftFallback: string;
   giftCopied: string;
   technique: string;
   materials: string;
@@ -61,6 +62,7 @@ export const UI_COPY: Record<Language, UiCopy> = {
     translationNote: "Traducción automática a partir de la voz original en español.",
     shareGift: "¿Es para regalar? Compartir historia y voz",
     giftMessage: "Te regalo esta pieza artesanal. Escuchá su historia en la voz de quien la hizo:",
+    giftFallback: "Copiar mensaje o abrir WhatsApp",
     giftCopied: "Mensaje y enlace copiados. Ya podés compartirlos.",
     technique: "Técnica",
     materials: "Materiales",
@@ -109,6 +111,7 @@ export const UI_COPY: Record<Language, UiCopy> = {
     translationNote: "Automatically translated from the original Spanish recording.",
     shareGift: "Giving it as a gift? Share the story and voice",
     giftMessage: "This handmade piece is a gift for you. Hear its story in the maker’s own voice:",
+    giftFallback: "Copy message or open WhatsApp",
     giftCopied: "Message and link copied. They’re ready to share.",
     technique: "Technique",
     materials: "Materials",
@@ -157,6 +160,7 @@ export const UI_COPY: Record<Language, UiCopy> = {
     translationNote: "Tradução automática a partir da gravação original em espanhol.",
     shareGift: "É para presente? Compartilhe a história e a voz",
     giftMessage: "Esta peça artesanal é um presente para você. Ouça a história na voz de quem a criou:",
+    giftFallback: "Copiar mensagem ou abrir o WhatsApp",
     giftCopied: "Mensagem e link copiados. Já pode compartilhar.",
     technique: "Técnica",
     materials: "Materiais",

@@ -32,6 +32,7 @@ function PiecePublicInner({ pieceId, lang }: { pieceId: string; lang: Language }
   const [lookup, setLookup] = useState<PieceLookup>({ status: "loading" });
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [giftFallbackUrl, setGiftFallbackUrl] = useState<string | null>(null);
   const [giftCopied, setGiftCopied] = useState(false);
 
   const [selectedAmount, setSelectedAmount] = useState<number>(5);
@@ -95,29 +96,34 @@ function PiecePublicInner({ pieceId, lang }: { pieceId: string; lang: Language }
     }
   }
 
-  async function shareGift() {
-    if (lookup.status !== "ready") return;
-    setGiftCopied(false);
-    const url = new URL(`/p/${encodeURIComponent(lookup.piece.id)}`, window.location.origin).href;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: lookup.piece.passport.craftMetadata.title,
-          text: copy.giftMessage,
-          url,
-        });
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-      }
-    }
-
+  async function copyOrOpenWhatsApp(url: string) {
     const message = `${copy.giftMessage} ${url}`;
     try {
       await navigator.clipboard.writeText(message);
       setGiftCopied(true);
     } catch {
       window.location.assign(`https://wa.me/?text=${encodeURIComponent(message)}`);
+    }
+  }
+
+  async function shareGift() {
+    if (lookup.status !== "ready") return;
+    setGiftCopied(false);
+    const url = new URL(`/p/${encodeURIComponent(lookup.piece.id)}`, window.location.origin).href;
+    if (!navigator.share) {
+      await copyOrOpenWhatsApp(url);
+      return;
+    }
+
+    try {
+      await navigator.share({
+        title: lookup.piece.passport.craftMetadata.title,
+        text: copy.giftMessage,
+        url,
+      });
+      setGiftFallbackUrl(null);
+    } catch {
+      setGiftFallbackUrl(url);
     }
   }
 
@@ -287,6 +293,15 @@ function PiecePublicInner({ pieceId, lang }: { pieceId: string; lang: Language }
           </svg>
           <span>{copy.shareGift}</span>
         </button>
+        {giftFallbackUrl && (
+          <button
+            type="button"
+            onClick={() => copyOrOpenWhatsApp(giftFallbackUrl)}
+            className="mx-auto mt-1 block min-h-12 px-3 text-sm font-semibold text-[#78311F] underline"
+          >
+            {copy.giftFallback}
+          </button>
+        )}
         <div role="status" className="text-center text-xs text-[#5B4C40]">
           {giftCopied && <p className="mt-2">{copy.giftCopied}</p>}
         </div>
