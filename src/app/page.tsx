@@ -56,12 +56,20 @@ async function HomeCatalogSection() {
       {/* Grilla rápida de etiquetas físicas de campo (pieza-01 a pieza-06) */}
       <section className="mt-8 rounded-3xl border border-[#DED2C2] bg-[#FBF8F3] p-5 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-serif text-2xl font-semibold text-[#1F1916]">
-            Etiquetas de Prueba en Campo · Mercado Artesanal
-          </h2>
-          <span className="text-xs text-[#786758]">
-            Tocá una etiqueta libre para grabarla en el puesto
-          </span>
+          <div>
+            <h2 className="font-serif text-2xl font-semibold text-[#1F1916]">
+              Etiquetas de Prueba en Campo · Mercado Artesanal
+            </h2>
+            <p className="mt-0.5 text-xs text-[#786758]">
+              Tocá una etiqueta libre para grabarla en el puesto
+            </p>
+          </div>
+          <Link
+            href="/etiquetas"
+            className="inline-flex items-center rounded-full border border-[#A64429]/40 bg-white px-3.5 py-1.5 text-xs font-semibold text-[#A64429] transition hover:border-[#A64429] hover:bg-[#A64429] hover:text-[#FDF9F3]"
+          >
+            Imprimir etiquetas QR A4 →
+          </Link>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">

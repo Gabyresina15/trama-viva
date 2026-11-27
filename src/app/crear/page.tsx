@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { QrCodeSvg } from "@/components/QrCodeSvg";
 import {
   CraftCategory,
   PieceRecord,
   SPLIT_PRESETS,
   SplitPresetId,
 } from "@/lib/types/trama";
+
+const PRODUCTION_BASE_URL = "https://trama-viva-cjwf.vercel.app";
 
 const STICKER_PRESETS = [
   "pieza-01",
@@ -106,6 +109,7 @@ function CrearFormInner() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdPiece, setCreatedPiece] = useState<PieceRecord | null>(null);
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -230,8 +234,34 @@ function CrearFormInner() {
     }
   }
 
+  async function handleShareOrCopy(piece: PieceRecord, url: string) {
+    setShareFeedback(null);
+    const shareTitle = `${piece.passport.craftMetadata.title} · Trama Viva`;
+    const shareText = `Escuchá la voz de quien hizo esta pieza (${piece.id}) en Trama Viva:`;
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: shareTitle, text: shareText, url });
+        setShareFeedback("Enlace compartido");
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareFeedback("Enlace copiado al portapapeles");
+    } catch {
+      setShareFeedback(`Copiá este enlace: ${url}`);
+    }
+  }
+
   if (createdPiece) {
     const publicPath = `/p/${createdPiece.id}`;
+    const publicUrl = `${PRODUCTION_BASE_URL}${publicPath}`;
     return (
       <div className="mx-auto max-w-xl px-4 py-8 sm:py-12">
         <div className="rounded-3xl border border-[#2B5B44]/40 bg-[#FBF8F3] p-6 shadow-sm sm:p-8">
@@ -254,6 +284,41 @@ function CrearFormInner() {
               {Math.round(createdPiece.salaBps / 100)} % sala
             </strong>
           </p>
+
+          <div className="mt-5 flex flex-col items-center rounded-2xl border border-[#DED2C2] bg-white p-5 text-center">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8C5B3E]">
+              Probá el escaneo celular a celular
+            </span>
+            <div className="mt-3 rounded-xl border border-[#E6DACB] bg-white p-2">
+              <QrCodeSvg
+                value={publicUrl}
+                margin={2}
+                errorCorrectionLevel="M"
+                fgColor="#1F1916"
+                bgColor="#FFFFFF"
+                title={`Código QR para ${createdPiece.id}`}
+                className="h-44 w-44"
+              />
+            </div>
+            <p className="mt-2.5 break-all font-mono text-[11px] text-[#5B4C40]">
+              {publicUrl}
+            </p>
+            <button
+              type="button"
+              onClick={() => handleShareOrCopy(createdPiece, publicUrl)}
+              className="mt-3 inline-flex min-h-11 cursor-pointer items-center justify-center rounded-full border border-[#A64429] bg-[#FDF9F3] px-5 py-2.5 text-xs font-semibold text-[#A64429] transition hover:bg-[#A64429] hover:text-white"
+            >
+              Copiar enlace / Compartir
+            </button>
+            {shareFeedback && (
+              <p
+                role="status"
+                className="mt-2 text-xs font-medium text-[#1E4432]"
+              >
+                {shareFeedback}
+              </p>
+            )}
+          </div>
 
           <div className="mt-4 rounded-2xl border border-[#E3D6C5] bg-white p-4 text-xs leading-relaxed text-[#3E332B]">
             <p className="font-semibold text-[#786758] uppercase tracking-wider text-[10px]">
@@ -284,6 +349,7 @@ function CrearFormInner() {
               type="button"
               onClick={() => {
                 setCreatedPiece(null);
+                setShareFeedback(null);
                 setAudioBlob(null);
                 setAudioPreviewUrl(null);
                 setPhotoBlob(null);

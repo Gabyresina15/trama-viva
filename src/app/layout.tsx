@@ -37,7 +37,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-[#F6F0E6] text-[#1F1916] selection:bg-[#A64429]/20">
         <header className="sticky top-0 z-30 border-b border-[#DED2C2] bg-[#F6F0E6]/92 backdrop-blur-md">
-          <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+          <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-y-2 px-4 py-3">
             <Link href="/" className="group flex items-baseline gap-2">
               <span className="font-serif text-2xl font-semibold tracking-tight text-[#1F1916]">
                 Trama Viva
@@ -46,7 +46,13 @@ export default function RootLayout({
                 Salta · Memoria Viva
               </span>
             </Link>
-            <nav className="flex items-center gap-2 text-xs font-medium sm:gap-3 sm:text-sm">
+            <nav className="flex flex-wrap items-center gap-2 text-xs font-medium sm:gap-3 sm:text-sm">
+              <Link
+                href="/validacion"
+                className="px-1.5 py-1.5 text-[#6B5B4E] underline-offset-4 transition hover:text-[#A64429] hover:underline"
+              >
+                Validación
+              </Link>
               <Link
                 href="/artesana"
                 className="rounded-full border border-[#D4C4B0] px-3 py-1.5 text-[#4B3E35] transition hover:border-[#A64429] hover:text-[#A64429]"
