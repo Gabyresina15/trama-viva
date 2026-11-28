@@ -95,7 +95,8 @@ const HASH_RE = /^[0-9a-fA-F]{64}$/;
 const TX_HASH_RE = /^[0-9a-fA-F]{64}$/;
 
 function env(name: string, fallback?: string): string {
-  const value = process.env[name] ?? fallback;
+  const raw = process.env[name] ?? fallback;
+  const value = raw?.trim().replace(/^["']|["']$/g, "");
   if (!value) throw new Error(`Falta la variable de entorno ${name}`);
   return value;
 }
