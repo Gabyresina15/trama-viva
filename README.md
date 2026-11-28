@@ -17,12 +17,17 @@ Con **Trama Viva**, registrar una pieza toma menos de 45 segundos: una foto y un
 
 ---
 
-## 2. El modelo de negocio
+## 2. El modelo de negocio y diseño de incentivos (Win-Win-Win)
 
-*(Validado a nivel de problema en campo; monetización planteada como hipótesis de escalabilidad comercial)*:
+A partir de nuestro relevamiento tarifario real y la mentoría de negocio durante el hackathon, diseñamos un esquema donde **tanto la artesana como la Sala/Tienda tienen incentivo real para adoptar Trama Viva** (evitando el error clásico de quitarle flujo de caja local al mostrador):
 
-1. **Comisión transaccional liviana (`2 %` sobre pagos y reconocimientos internacionales en USDC):** descontada de forma transparente y atómica solo cuando ingresa un pago transfronterizo exitoso, muy por debajo del costo y fricción de terminales internacionales o giros tradicionales.
-2. **Licencia B2B / SaaS para mercados artesanales, cooperativas y museos (`Suscripción institucional`):** provisión de etiquetas QR pre-seriadas, panel de trazabilidad de salas colectivas y liquidación automática de consignaciones para organismos provinciales de cultura, redes de comercio justo (como cooperativas textiles del Gran Chaco y Valles) y tiendas de museos en toda Latinoamérica.
+1. **Convivencia inteligente de rieles (cuándo Mercado Pago y cuándo Stellar):**
+   - Para pagos chicos en pesos de clientes argentinos, el mostrador mantiene su QR local de Mercado Pago (`0,97 %` con dinero en cuenta).
+   - **Stellar entra donde los rieles locales pierden o no llegan:** cobros a turistas que operan USDC o frente al **`~10,9 %` de descuento total que sufren las tarjetas de crédito extranjeras**, más aportes/encargos internacionales post-venta cuando la artesanía viaja o se entrega como regalo. Al acumular el `85 %` en el contrato Soroban, la artesana retira montos consolidados mediante rampas/Anchors de bajo spread (`~0,4 % – 1 %`) en lugar de perder margen en comisiones fijas mínimas.
+2. **Por qué la Sala / Asociación adopta las etiquetas:**
+   - En Salta el problema principal reportado en el Mercado Artesanal es la baja conversión (*"el turista recorre, conoce, pero compra muy poco"*, Rosa Girón, julio 2026). La etiqueta con la voz real del creador y desglose de impacto aumenta la decisión de compra y le liquida a la Sala su **`15 %` en el acto**, sumándole además ingresos pasivos sobre reconocimientos y encargos posteriores desde el exterior y resolviendo sin planillas manuales la rendición de cuentas hacia socios del interior.
+3. **Sostenibilidad de la plataforma *(hipótesis comercial a escalar)*:**
+   - Comisión liviana del **`2 %`** descontada atómicamente solo sobre transacciones internacionales en USDC + licencia B2B institucional para mercados artesanales provinciales, cooperativas de comercio justo (como COMAR o Arte y Esperanza) y tiendas de museos.
 
 ---
 

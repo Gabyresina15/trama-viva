@@ -142,6 +142,14 @@ export async function supportPieceBridge(
           amountStroops: split.totalStroops,
           holdInEscrow,
         });
+      } else if (msg.includes("DuplicateSupport")) {
+        // Si dos testers externos tocan apoyar en el mismo bloque (<30s), esperamos 1 cierre de ledger y reintentamos 1 vez
+        await new Promise((r) => setTimeout(r, 5500));
+        res = await supportPieceOnChain({
+          pieceId: symbol,
+          amountStroops: split.totalStroops,
+          holdInEscrow,
+        });
       } else {
         throw err;
       }
