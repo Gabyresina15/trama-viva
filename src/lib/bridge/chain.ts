@@ -1,13 +1,6 @@
 import {
-  Address,
-  Contract,
-  Networks,
-  TransactionBuilder,
-  rpc,
-  scValToNative,
-} from "@stellar/stellar-sdk";
-import {
   claimArtisanEarningsOnChain,
+  getArtisanPendingBalanceOnChain,
   registerPieceOnChain,
   supportPieceOnChain,
   verifyReceiptFromChain,
@@ -20,20 +13,29 @@ import {
   toSorobanPieceSymbol,
 } from "@/lib/types/trama";
 
-const EXPLORER_BASE =
+const DEFAULT_CONTRACT_ID =
+  "CDK6FDRZK5TQ544VDDXFPWXC3OEPXI2RQFA2MMASYIDVFKHG3YLSYIDR";
+const EXPLORER_BASE = (
   process.env.NEXT_PUBLIC_EXPLORER_BASE ||
-  "https://stellar.expert/explorer/testnet";
+  "https://stellar.expert/explorer/testnet"
+)
+  .trim()
+  .replace(/^["']|["']$/g, "");
 
-function isLiveSorobanConfigured(): boolean {
-  const contractId = process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim();
-  const treasurySecret = process.env.TREASURY_SECRET_KEY?.trim();
-  const salaSecret = process.env.SALA_SECRET_KEY?.trim();
+function cleanSecret(val?: string): string {
+  return (val || "").trim().replace(/^["']|["']$/g, "");
+}
+
+export function isLiveSorobanConfigured(): boolean {
+  const contractId = (
+    process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim() ||
+    DEFAULT_CONTRACT_ID
+  ).replace(/^["']|["']$/g, "");
+  const treasurySecret = cleanSecret(process.env.TREASURY_SECRET_KEY);
+  const salaSecret = cleanSecret(process.env.SALA_SECRET_KEY);
   return Boolean(
-    contractId &&
-      /^C[A-Z2-7]{55}$/.test(contractId) &&
-      treasurySecret &&
+    /^C[A-Z2-7]{55}$/.test(contractId) &&
       /^S[A-Z2-7]{55}$/.test(treasurySecret) &&
-      salaSecret &&
       /^S[A-Z2-7]{55}$/.test(salaSecret)
   );
 }
@@ -73,7 +75,7 @@ export async function registerPieceBridge(
 
   const contractId =
     process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim() ||
-    "PENDIENTE_CONTRACT_ID_EN_ENV";
+    DEFAULT_CONTRACT_ID;
   const previewHash = sha256Hex(
     `preview_reg:${input.pieceId}:${input.passportHashHex}:${Date.now()}`
   );
@@ -81,9 +83,7 @@ export async function registerPieceBridge(
     txHash: previewHash,
     contractId,
     explorerTxUrl: `${EXPLORER_BASE}/tx/${previewHash}`,
-    explorerContractUrl: contractId.startsWith("C")
-      ? `${EXPLORER_BASE}/contract/${contractId}`
-      : EXPLORER_BASE,
+    explorerContractUrl: `${EXPLORER_BASE}/contract/${contractId}`,
     chainMode: "preview_local",
   };
 }
@@ -127,8 +127,6 @@ export async function supportPieceBridge(
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // Si apoyan una pieza semilla de muestra que aún no fue registrada on-chain,
-      // la registramos primero y luego ejecutamos el apoyo atómico.
       if (msg.includes("PieceNotFound")) {
         await registerPieceOnChain({
           pieceId: symbol,
@@ -143,7 +141,6 @@ export async function supportPieceBridge(
           holdInEscrow,
         });
       } else if (msg.includes("DuplicateSupport")) {
-        // Si dos testers externos tocan apoyar en el mismo bloque (<30s), esperamos 1 cierre de ledger y reintentamos 1 vez
         await new Promise((r) => setTimeout(r, 5500));
         res = await supportPieceOnChain({
           pieceId: symbol,
@@ -173,7 +170,7 @@ export async function supportPieceBridge(
 
   const contractId =
     process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim() ||
-    "PENDIENTE_CONTRACT_ID_EN_ENV";
+    DEFAULT_CONTRACT_ID;
   const defaultTreasuryPk =
     process.env.TREASURY_PUBLIC_KEY ||
     "GDYGARGZK7ZCUV3ZHRB3CE7MNUKFTUCPS4FOZAT4HYZZLC73EKJRAKBO";
@@ -207,45 +204,18 @@ export async function getArtisanPendingBalanceBridge(): Promise<PendingEscrowSta
     "GASRK6WN7ZNDXMUYPWGBL4NHMDVWZRNTPTQ75XFK37B3FH6SVNMVAHMY";
   const contractId =
     process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim() ||
-    "CDK6FDRZK5TQ544VDDXFPWXC3OEPXI2RQFA2MMASYIDVFKHG3YLSYIDR";
-  const rpcUrl = (
-    process.env.STELLAR_RPC_URL || "https://soroban-testnet.stellar.org"
-  )
-    .replace(/^["']|["']$/g, "")
-    .trim();
-  const passphrase = (process.env.STELLAR_PASSPHRASE || Networks.TESTNET)
-    .replace(/^["']|["']$/g, "")
-    .trim();
+    DEFAULT_CONTRACT_ID;
 
-  if (contractId && /^C[A-Z2-7]{55}$/.test(contractId)) {
+  if (isLiveSorobanConfigured()) {
     try {
-      const server = new rpc.Server(rpcUrl);
-      const source = await server.getAccount(artisanAddress);
-      const contractInstance = new Contract(contractId);
-      const tx = new TransactionBuilder(source, {
-        fee: "100",
-        networkPassphrase: passphrase,
-      })
-        .addOperation(
-          contractInstance.call(
-            "get_pending_balance",
-            new Address(artisanAddress).toScVal()
-          )
-        )
-        .setTimeout(30)
-        .build();
-
-      const sim = await server.simulateTransaction(tx);
-      if (rpc.Api.isSimulationSuccess(sim) && sim.result?.retval) {
-        const val = BigInt(scValToNative(sim.result.retval));
-        return {
-          artisanAddress,
-          contractId,
-          pendingStroops: val.toString(),
-          pendingUsdcFormatted: stroopsToUsdcString(val),
-          chainMode: "soroban_testnet",
-        };
-      }
+      const live = await getArtisanPendingBalanceOnChain(artisanAddress);
+      return {
+        artisanAddress: live.artisanAddress,
+        contractId: live.contractId,
+        pendingStroops: live.pendingStroops,
+        pendingUsdcFormatted: stroopsToUsdcString(live.pendingStroops),
+        chainMode: "soroban_testnet",
+      };
     } catch {
       // Fallback limpio si el RPC tarda
     }
@@ -253,10 +223,10 @@ export async function getArtisanPendingBalanceBridge(): Promise<PendingEscrowSta
 
   return {
     artisanAddress,
-    contractId: contractId || "PENDIENTE_CONTRACT_ID_EN_ENV",
+    contractId,
     pendingStroops: "0",
     pendingUsdcFormatted: "0.00",
-    chainMode: contractId ? "soroban_testnet" : "preview_local",
+    chainMode: isLiveSorobanConfigured() ? "soroban_testnet" : "preview_local",
   };
 }
 

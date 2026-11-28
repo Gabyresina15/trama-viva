@@ -108,12 +108,27 @@ function config() {
     horizonUrl: env("STELLAR_HORIZON_URL", "https://horizon-testnet.stellar.org"),
     networkPassphrase: env("STELLAR_PASSPHRASE", "Test SDF Network ; September 2015"),
     explorerBase,
-    contractId: env("NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID"),
-    usdcIssuer: env("USDC_ISSUER"),
-    usdcSacId: env("USDC_SAC_CONTRACT_ID"),
+    contractId: env(
+      "NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID",
+      "CDK6FDRZK5TQ544VDDXFPWXC3OEPXI2RQFA2MMASYIDVFKHG3YLSYIDR"
+    ),
+    usdcIssuer: env(
+      "USDC_ISSUER",
+      "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+    ),
+    usdcSacId: env(
+      "USDC_SAC_CONTRACT_ID",
+      "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"
+    ),
     treasury: Keypair.fromSecret(env("TREASURY_SECRET_KEY")),
-    salaPublicKey: env("SALA_PUBLIC_KEY"),
-    artisanPublicKey: env("ARTESANA_PUBLIC_KEY"),
+    salaPublicKey: env(
+      "SALA_PUBLIC_KEY",
+      "GDOCBPHEP3JWETL5DUDNHECK4LUAJDMQFH2B7APBET3CAKSWXM3CTVP6"
+    ),
+    artisanPublicKey: env(
+      "ARTESANA_PUBLIC_KEY",
+      "GASRK6WN7ZNDXMUYPWGBL4NHMDVWZRNTPTQ75XFK37B3FH6SVNMVAHMY"
+    ),
   };
 }
 
@@ -338,6 +353,22 @@ async function openSponsoredUsdcTrustline(artisan: Keypair): Promise<string> {
   tx.sign(c.treasury, artisan);
   const res = await horizon.submitTransaction(tx);
   return res.hash;
+}
+
+export async function getArtisanPendingBalanceOnChain(
+  artisanAddress?: string
+): Promise<{ artisanAddress: string; contractId: string; pendingStroops: string }> {
+  const c = config();
+  const target = artisanAddress ?? c.artisanPublicKey;
+  const client = await getClient();
+  const pending = await simulateRead(() =>
+    client.get_pending_balance({ artisan: target })
+  );
+  return {
+    artisanAddress: target,
+    contractId: c.contractId,
+    pendingStroops: pending.toString(),
+  };
 }
 
 export async function claimArtisanEarningsOnChain(

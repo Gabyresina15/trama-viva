@@ -15,20 +15,38 @@ interface ExtractPassportInput {
   manualTranscript?: string;
 }
 
+export interface AiDiagnostics {
+  hasXaiKey: boolean;
+  hasMetaKey: boolean;
+  sttAttempted: boolean;
+  sttSucceeded: boolean;
+  sttErrorHint?: string;
+  llmAttempted: boolean;
+  llmSucceeded: boolean;
+  llmModelUsed?: string;
+  llmErrorHint?: string;
+}
+
 export interface ExtractPassportOutput {
   passport: CulturalPassport;
   aiSource: "xai_grok" | "meta_ai" | "manual_fallback";
+  diagnostics: AiDiagnostics;
 }
 
 const SALTA_CRAFT_VOCAB_PROMPT =
   "Vocabulario regional frecuente en Salta y NOA: chaguar, simbol, telar criollo, urdimbre, trama, lana de oveja, fibra de llama, tintes naturales, nogal, cebolla, cochinilla, Seclantás, Cachi, Molinos, Cafayate, Animaná, Puna, Santa Victoria, Mercado Artesanal de Salta, tinaja, engobe, bruñido, alpaca, cincelado.";
 
+function cleanEnv(val?: string): string {
+  return (val || "").trim().replace(/^["']|["']$/g, "");
+}
+
 function extFromMime(mime?: string): string {
   if (!mime) return "webm";
-  if (mime.includes("mp4") || mime.includes("m4a")) return "m4a";
-  if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
-  if (mime.includes("wav")) return "wav";
-  if (mime.includes("ogg")) return "ogg";
+  const lower = mime.toLowerCase();
+  if (lower.includes("mp4") || lower.includes("m4a")) return "m4a";
+  if (lower.includes("mpeg") || lower.includes("mp3")) return "mp3";
+  if (lower.includes("wav")) return "wav";
+  if (lower.includes("ogg")) return "ogg";
   return "webm";
 }
 
@@ -36,15 +54,17 @@ async function transcribeWithGrokStt(
   audioBuffer: Buffer,
   audioMimeType: string,
   apiKey: string
-): Promise<string | null> {
-  const model = process.env.XAI_STT_MODEL || "grok-voice-transcribe-2.0";
+): Promise<{ text: string | null; errorHint?: string }> {
+  const model = cleanEnv(process.env.XAI_STT_MODEL) || "grok-voice-transcribe-2.0";
   const ext = extFromMime(audioMimeType);
-  const cleanMime = audioMimeType.split(";")[0] || "audio/webm";
+  const cleanMime = (audioMimeType.split(";")[0] || "audio/webm").trim();
 
   const endpoints = [
     "https://api.x.ai/v1/stt",
     "https://api.x.ai/v1/audio/transcriptions",
   ];
+
+  const errors: string[] = [];
 
   for (const url of endpoints) {
     try {
@@ -61,18 +81,26 @@ async function transcribeWithGrokStt(
           Authorization: `Bearer ${apiKey}`,
         },
         body: form,
-        signal: AbortSignal.timeout(9000),
+        signal: AbortSignal.timeout(12000),
       });
 
-      if (!res.ok) continue;
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        errors.push(`${url} -> HTTP ${res.status} ${errBody.slice(0, 120)}`);
+        continue;
+      }
       const data = (await res.json()) as { text?: string; transcript?: string };
       const text = (data.text || data.transcript || "").trim();
-      if (text.length > 0) return text;
-    } catch {
-      // Intenta el endpoint alternativo o cae al fallback sin romper el flujo.
+      if (text.length > 0) return { text };
+      errors.push(`${url} -> 200 empty text`);
+    } catch (e) {
+      errors.push(
+        `${url} -> ${e instanceof Error ? e.message : "network_error"}`
+      );
     }
   }
-  return null;
+
+  return { text: null, errorHint: errors.join(" | ") };
 }
 
 async function structurePassportWithLlm(params: {
@@ -82,20 +110,36 @@ async function structurePassportWithLlm(params: {
   manualCategory?: CraftCategory;
   manualHintTitle?: string;
   manualLocality?: string;
-}): Promise<{ passport: CulturalPassport; source: "xai_grok" | "meta_ai" } | null> {
-  const xaiKey = process.env.XAI_API_KEY?.trim();
-  const metaKey = process.env.META_API_KEY?.trim();
+}): Promise<{
+  passport: CulturalPassport | null;
+  source?: "xai_grok" | "meta_ai";
+  modelUsed?: string;
+  errorHint?: string;
+}> {
+  const xaiKey = cleanEnv(process.env.XAI_API_KEY);
+  const metaKey = cleanEnv(process.env.META_API_KEY);
 
   const useXai = Boolean(xaiKey);
   const apiKey = xaiKey || metaKey;
-  if (!apiKey) return null;
+  if (!apiKey) return { passport: null, errorHint: "missing_api_key" };
 
   const baseUrl = useXai
     ? "https://api.x.ai/v1/chat/completions"
     : "https://api.meta.ai/v1/chat/completions";
-  const model = useXai
-    ? process.env.XAI_CHAT_MODEL || "grok-4-fast"
-    : process.env.META_CHAT_MODEL || "muse-spark-1.3";
+
+  const configuredModel = useXai
+    ? cleanEnv(process.env.XAI_CHAT_MODEL)
+    : cleanEnv(process.env.META_CHAT_MODEL);
+
+  const candidateModels = useXai
+    ? Array.from(
+        new Set(
+          [configuredModel, "grok-4.7", "grok-4-fast", "grok-3-mini"].filter(
+            Boolean
+          )
+        )
+      )
+    : [configuredModel || "muse-spark-1.3"];
 
   const systemPrompt = `Sos un archivista cultural del Mercado Artesanal de Salta.
 A partir del relato oral transcripto de un artesano/a (y opcionalmente la foto de la pieza), devolvé EXCLUSIVAMENTE un objeto JSON válido sin bloques markdown.
@@ -140,11 +184,13 @@ Estructura JSON exacta requerida:
     { type: "text", text: userText },
   ];
 
-  if (
+  const hasPhoto = Boolean(
     params.photoBuffer &&
-    params.photoMimeType &&
-    params.photoBuffer.byteLength <= 1_800_000
-  ) {
+      params.photoMimeType &&
+      params.photoBuffer.byteLength <= 1_800_000
+  );
+
+  if (hasPhoto && params.photoBuffer && params.photoMimeType) {
     const b64 = params.photoBuffer.toString("base64");
     const cleanPhotoMime = params.photoMimeType.split(";")[0] || "image/jpeg";
     contentParts.push({
@@ -155,56 +201,68 @@ Estructura JSON exacta requerida:
     });
   }
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await fetch(baseUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          temperature: 0.15,
-          response_format: { type: "json_object" },
-          messages: [
-            { role: "system", content: systemPrompt },
-            {
-              role: "user",
-              content: attempt === 0 ? contentParts : userText,
-            },
-          ],
-        }),
-        signal: AbortSignal.timeout(9500),
-      });
+  const errors: string[] = [];
 
-      if (!res.ok) continue;
-      const payload = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      const rawContent = payload.choices?.[0]?.message?.content?.trim();
-      if (!rawContent) continue;
+  for (const model of candidateModels) {
+    // Intenta primero texto puro (ultra rápido y compatible con cualquier modelo) o multimodal si es el primero
+    const payloads = hasPhoto ? [contentParts, userText] : [userText];
+    for (const userContent of payloads) {
+      try {
+        const res = await fetch(baseUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            temperature: 0.15,
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userContent },
+            ],
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
 
-      const cleaned = rawContent
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/```$/i, "")
-        .trim();
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          errors.push(`${model} -> HTTP ${res.status} ${errText.slice(0, 90)}`);
+          continue;
+        }
 
-      const parsedJson = JSON.parse(cleaned);
-      const validated = CulturalPassportSchema.safeParse(parsedJson);
-      if (validated.success) {
-        return {
-          passport: validated.data,
-          source: useXai ? "xai_grok" : "meta_ai",
+        const payload = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string } }>;
         };
+        const rawContent = payload.choices?.[0]?.message?.content?.trim();
+        if (!rawContent) continue;
+
+        const cleaned = rawContent
+          .replace(/^```json\s*/i, "")
+          .replace(/^```\s*/i, "")
+          .replace(/```$/i, "")
+          .trim();
+
+        const parsedJson = JSON.parse(cleaned);
+        const validated = CulturalPassportSchema.safeParse(parsedJson);
+        if (validated.success) {
+          return {
+            passport: validated.data,
+            source: useXai ? "xai_grok" : "meta_ai",
+            modelUsed: model,
+          };
+        }
+        errors.push(`${model} -> zod_validation_failed`);
+      } catch (e) {
+        errors.push(
+          `${model} -> ${e instanceof Error ? e.message : "llm_error"}`
+        );
       }
-    } catch {
-      // Si el primer intento con imagen falla o da timeout, el segundo intenta solo con texto.
     }
   }
 
-  return null;
+  return { passport: null, errorHint: errors.slice(0, 3).join(" | ") };
 }
 
 const CATEGORY_LABELS: Record<
@@ -261,10 +319,10 @@ export function buildFallbackPassport(input: {
     transcriptEs,
     translations: {
       en: input.transcriptEs
-        ? `[Auto-caption ready on live voice] ${labels.en} from ${locality}. Listen to the artisan's original voice above.`
+        ? `${input.transcriptEs} (${labels.en} · ${locality})`
         : `Original voice story recorded by the creator (${labels.en} · ${locality}). Listen to the authentic recording above.`,
       pt: input.transcriptEs
-        ? `[Legenda vinculada à voz original] ${labels.pt} de ${locality}. Ouça a voz original de quem fez a peça acima.`
+        ? `${input.transcriptEs} (${labels.pt} · ${locality})`
         : `Relato de voz original gravado por quem criou a peça (${labels.pt} · ${locality}). Ouça a gravação autêntica acima.`,
     },
     craftMetadata: {
@@ -287,18 +345,34 @@ export function buildFallbackPassport(input: {
 export async function extractCulturalPassport(
   input: ExtractPassportInput
 ): Promise<ExtractPassportOutput> {
-  const xaiKey = process.env.XAI_API_KEY?.trim();
+  const xaiKey = cleanEnv(process.env.XAI_API_KEY);
+  const metaKey = cleanEnv(process.env.META_API_KEY);
+
+  const diagnostics: AiDiagnostics = {
+    hasXaiKey: xaiKey.length > 5,
+    hasMetaKey: metaKey.length > 5,
+    sttAttempted: false,
+    sttSucceeded: false,
+    llmAttempted: false,
+    llmSucceeded: false,
+  };
+
   let transcript = input.manualTranscript?.trim() || null;
 
-  if (!transcript && input.audioBuffer && xaiKey) {
-    transcript = await transcribeWithGrokStt(
+  if (!transcript && input.audioBuffer && diagnostics.hasXaiKey) {
+    diagnostics.sttAttempted = true;
+    const sttRes = await transcribeWithGrokStt(
       input.audioBuffer,
       input.audioMimeType || "audio/webm",
       xaiKey
     );
+    transcript = sttRes.text;
+    diagnostics.sttSucceeded = Boolean(sttRes.text);
+    if (sttRes.errorHint) diagnostics.sttErrorHint = sttRes.errorHint;
   }
 
-  if (transcript) {
+  if (transcript && (diagnostics.hasXaiKey || diagnostics.hasMetaKey)) {
+    diagnostics.llmAttempted = true;
     const structured = await structurePassportWithLlm({
       transcriptEs: transcript,
       photoBuffer: input.photoBuffer,
@@ -308,12 +382,16 @@ export async function extractCulturalPassport(
       manualLocality: input.manualLocality,
     });
 
-    if (structured) {
+    if (structured.passport && structured.source) {
+      diagnostics.llmSucceeded = true;
+      diagnostics.llmModelUsed = structured.modelUsed;
       return {
         passport: structured.passport,
         aiSource: structured.source,
+        diagnostics,
       };
     }
+    if (structured.errorHint) diagnostics.llmErrorHint = structured.errorHint;
   }
 
   return {
@@ -324,5 +402,6 @@ export async function extractCulturalPassport(
       locality: input.manualLocality,
     }),
     aiSource: "manual_fallback",
+    diagnostics,
   };
 }
