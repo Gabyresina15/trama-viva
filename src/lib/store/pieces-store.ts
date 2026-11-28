@@ -22,8 +22,7 @@ const DEFAULT_CONTRACT_ID =
 function isVercelBlobEnabled(): boolean {
   return Boolean(
     process.env.BLOB_READ_WRITE_TOKEN?.trim() ||
-      (process.env.BLOB_STORE_ID?.trim() &&
-        process.env.VERCEL_OIDC_TOKEN?.trim())
+      process.env.BLOB_STORE_ID?.trim()
   );
 }
 

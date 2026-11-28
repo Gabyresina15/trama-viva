@@ -200,9 +200,14 @@ export async function getArtisanPendingBalanceBridge(): Promise<PendingEscrowSta
   const contractId =
     process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim() ||
     "CDK6FDRZK5TQ544VDDXFPWXC3OEPXI2RQFA2MMASYIDVFKHG3YLSYIDR";
-  const rpcUrl =
-    process.env.STELLAR_RPC_URL || "https://soroban-testnet.stellar.org";
-  const passphrase = process.env.STELLAR_PASSPHRASE || Networks.TESTNET;
+  const rpcUrl = (
+    process.env.STELLAR_RPC_URL || "https://soroban-testnet.stellar.org"
+  )
+    .replace(/^["']|["']$/g, "")
+    .trim();
+  const passphrase = (process.env.STELLAR_PASSPHRASE || Networks.TESTNET)
+    .replace(/^["']|["']$/g, "")
+    .trim();
 
   if (contractId && /^C[A-Z2-7]{55}$/.test(contractId)) {
     try {
