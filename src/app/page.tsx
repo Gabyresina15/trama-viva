@@ -17,7 +17,9 @@ async function HomeCatalogSection() {
   const pieces = await listPieces();
   const recordedIds = new Set(pieces.map((p) => p.id));
   const contractId =
-    process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim() || "";
+    process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim() ||
+    "CDK6FDRZK5TQ544VDDXFPWXC3OEPXI2RQFA2MMASYIDVFKHG3YLSYIDR";
+  const hasLiveSigner = Boolean(process.env.TREASURY_SECRET_KEY?.trim());
   const explorerBase =
     process.env.NEXT_PUBLIC_EXPLORER_BASE ||
     "https://stellar.expert/explorer/testnet";
@@ -28,7 +30,7 @@ async function HomeCatalogSection() {
       <div className="mt-6 rounded-2xl border border-[#E3D6C5] bg-[#F5EDE1] p-3.5 text-xs text-[#5B4C40]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="font-medium">
-            {contractId ? (
+            {hasLiveSigner ? (
               <span className="inline-flex items-center gap-1.5 text-[#23533D]">
                 <span className="h-2 w-2 rounded-full bg-[#2B6B4F]" />
                 Contrato Soroban activo en Stellar Testnet
@@ -36,7 +38,7 @@ async function HomeCatalogSection() {
             ) : (
               <span className="inline-flex items-center gap-1.5 text-[#8A5229]">
                 <span className="h-2 w-2 rounded-full bg-[#C87A3E]" />
-                Modo vista previa local (esperando Contract ID en .env.local)
+                Lectura en vivo de Soroban Testnet (faltan claves firmantes en Vercel Env)
               </span>
             )}
           </span>

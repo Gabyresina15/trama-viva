@@ -198,7 +198,8 @@ export async function getArtisanPendingBalanceBridge(): Promise<PendingEscrowSta
     process.env.ARTESANA_PUBLIC_KEY ||
     "GASRK6WN7ZNDXMUYPWGBL4NHMDVWZRNTPTQ75XFK37B3FH6SVNMVAHMY";
   const contractId =
-    process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim() || "";
+    process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim() ||
+    "CDK6FDRZK5TQ544VDDXFPWXC3OEPXI2RQFA2MMASYIDVFKHG3YLSYIDR";
   const rpcUrl =
     process.env.STELLAR_RPC_URL || "https://soroban-testnet.stellar.org";
   const passphrase = process.env.STELLAR_PASSPHRASE || Networks.TESTNET;

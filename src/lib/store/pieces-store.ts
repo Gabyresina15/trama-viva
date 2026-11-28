@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { get, list, put } from "@vercel/blob";
 import {
   PieceRecord,
   SupportReceiptRecord,
@@ -14,6 +15,33 @@ const DEFAULT_SALA =
 const DEFAULT_ARTESANA =
   process.env.ARTESANA_PUBLIC_KEY ||
   "GASRK6WN7ZNDXMUYPWGBL4NHMDVWZRNTPTQ75XFK37B3FH6SVNMVAHMY";
+const DEFAULT_CONTRACT_ID =
+  process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim() ||
+  "CDK6FDRZK5TQ544VDDXFPWXC3OEPXI2RQFA2MMASYIDVFKHG3YLSYIDR";
+
+function isVercelBlobEnabled(): boolean {
+  return Boolean(
+    process.env.BLOB_READ_WRITE_TOKEN?.trim() ||
+      (process.env.BLOB_STORE_ID?.trim() &&
+        process.env.VERCEL_OIDC_TOKEN?.trim())
+  );
+}
+
+async function readPrivateBlobBuffer(
+  pathname: string
+): Promise<{ buffer: Buffer; contentType: string } | null> {
+  try {
+    const res = await get(pathname, { access: "private", useCache: false });
+    if (!res || res.statusCode !== 200 || !res.stream) return null;
+    const arr = await new Response(res.stream).arrayBuffer();
+    return {
+      buffer: Buffer.from(arr),
+      contentType: res.blob.contentType || "application/octet-stream",
+    };
+  } catch {
+    return null;
+  }
+}
 
 let resolvedBaseDir: string | null = null;
 
@@ -105,8 +133,7 @@ function buildSeedRecord(params: {
     artisanBps: params.artisanBps,
   });
   const passportHashHex = sha256Hex(canonicalPackageJson);
-  const contractId =
-    process.env.NEXT_PUBLIC_TRAMA_VIVA_CONTRACT_ID?.trim() || "";
+  const contractId = DEFAULT_CONTRACT_ID;
   const explorerBase =
     process.env.NEXT_PUBLIC_EXPLORER_BASE ||
     "https://stellar.expert/explorer/testnet";
@@ -168,15 +195,12 @@ function buildSeedRecord(params: {
         missingCriticalInfo: [],
       },
     },
-    registrationTxHash: "demo_seed_pending_live_tx",
-    contractId: contractId || "PENDIENTE_DEPLOY_SOROBAN",
-    explorerTxUrl: contractId
-      ? `${explorerBase}/contract/${contractId}`
-      : `${explorerBase}`,
-    explorerContractUrl: contractId
-      ? `${explorerBase}/contract/${contractId}`
-      : `${explorerBase}`,
-    chainMode: contractId ? "soroban_testnet" : "preview_local",
+    registrationTxHash:
+      "6326bc0a7d83f5e3ea51446d85c5adca46be5c578fa02eda24f161f179e9d865",
+    contractId,
+    explorerTxUrl: `${explorerBase}/tx/6326bc0a7d83f5e3ea51446d85c5adca46be5c578fa02eda24f161f179e9d865`,
+    explorerContractUrl: `${explorerBase}/contract/${contractId}`,
+    chainMode: "soroban_testnet",
     supports: [],
   };
 }
@@ -217,7 +241,7 @@ const DEMO_SEEDS: Record<string, () => { record: PieceRecord; audio: Buffer }> =
       transcriptEs:
         "Pieza de demostración técnica para Testnet: alfarería modelada a mano sin torno, con sello criptográfico SHA-256 y custodia en contrato Soroban para creadores sin billetera previa.",
       en: "Technical Testnet demonstration piece: hand-coiled pottery without a wheel, featuring SHA-256 cryptographic sealing and Soroban smart-contract escrow for artisans without a prior wallet.",
-      pt: "Peça de demonstração técnica na Testnet: cerâmica modelada à mão sem torno, com selo criptográfico SHA-256 e custódia em contrato Soroban para artesãos sem carteira prévia.",
+      pt: "Peça de demostración técnica na Testnet: cerâmica modelada à mão sem torno, com selo criptográfico SHA-256 e custódia em contrato Soroban para artesãos sem carteira prévia.",
       artisanBps: 8500,
       freq: 349.23,
       svgAccent: "#3f2e21",
@@ -233,17 +257,10 @@ export async function savePieceWithMedia(params: {
   photoBuffer?: Buffer;
   photoExt?: string;
 }): Promise<PieceRecord> {
-  const root = await getStorageRoot();
-  const pieceDir = path.join(root, "pieces", params.record.id);
-  await fs.mkdir(pieceDir, { recursive: true });
-
   const audioFileName = `audio.${params.audioExt}`;
-  await fs.writeFile(path.join(pieceDir, audioFileName), params.audioBuffer);
-
   let photoFileName: string | undefined;
   if (params.photoBuffer && params.photoExt) {
     photoFileName = `photo.${params.photoExt}`;
-    await fs.writeFile(path.join(pieceDir, photoFileName), params.photoBuffer);
   }
 
   const finalRecord: PieceRecord = {
@@ -251,6 +268,47 @@ export async function savePieceWithMedia(params: {
     audioFileName,
     photoFileName,
   };
+
+  if (isVercelBlobEnabled()) {
+    const id = params.record.id;
+    await put(`pieces/${id}/${audioFileName}`, params.audioBuffer, {
+      access: "private",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      contentType: params.record.audioMimeType || "audio/webm",
+    });
+
+    if (params.photoBuffer && photoFileName) {
+      await put(`pieces/${id}/${photoFileName}`, params.photoBuffer, {
+        access: "private",
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        contentType: params.record.photoMimeType || "image/jpeg",
+      });
+    }
+
+    await put(
+      `pieces/${id}/piece.json`,
+      JSON.stringify(finalRecord, null, 2),
+      {
+        access: "private",
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        contentType: "application/json",
+      }
+    );
+
+    return finalRecord;
+  }
+
+  const root = await getStorageRoot();
+  const pieceDir = path.join(root, "pieces", params.record.id);
+  await fs.mkdir(pieceDir, { recursive: true });
+  await fs.writeFile(path.join(pieceDir, audioFileName), params.audioBuffer);
+
+  if (params.photoBuffer && photoFileName) {
+    await fs.writeFile(path.join(pieceDir, photoFileName), params.photoBuffer);
+  }
 
   await fs.writeFile(
     path.join(pieceDir, "piece.json"),
@@ -263,6 +321,24 @@ export async function savePieceWithMedia(params: {
 
 export async function getPieceById(id: string): Promise<PieceRecord | null> {
   const normalized = id.trim().toLowerCase();
+
+  if (isVercelBlobEnabled()) {
+    const blobData = await readPrivateBlobBuffer(
+      `pieces/${normalized}/piece.json`
+    );
+    if (blobData) {
+      try {
+        return JSON.parse(blobData.buffer.toString("utf-8")) as PieceRecord;
+      } catch {
+        // continúa al fallback
+      }
+    }
+    if (DEMO_SEEDS[normalized]) {
+      return DEMO_SEEDS[normalized]().record;
+    }
+    return null;
+  }
+
   const root = await getStorageRoot();
   const jsonPath = path.join(root, "pieces", normalized, "piece.json");
 
@@ -282,9 +358,46 @@ export async function getPieceMediaBuffer(
   kind: "audio" | "photo"
 ): Promise<{ buffer: Buffer; mimeType: string } | null> {
   const normalized = id.trim().toLowerCase();
-  const root = await getStorageRoot();
   const piece = await getPieceById(normalized);
   if (!piece) return null;
+
+  if (isVercelBlobEnabled()) {
+    if (kind === "audio") {
+      if (piece.audioFileName) {
+        const media = await readPrivateBlobBuffer(
+          `pieces/${normalized}/${piece.audioFileName}`
+        );
+        if (media) {
+          return {
+            buffer: media.buffer,
+            mimeType: piece.audioMimeType || media.contentType || "audio/webm",
+          };
+        }
+      }
+      if (DEMO_SEEDS[normalized]) {
+        return {
+          buffer: DEMO_SEEDS[normalized]().audio,
+          mimeType: "audio/wav",
+        };
+      }
+      return null;
+    }
+
+    if (piece.photoFileName) {
+      const media = await readPrivateBlobBuffer(
+        `pieces/${normalized}/${piece.photoFileName}`
+      );
+      if (media) {
+        return {
+          buffer: media.buffer,
+          mimeType: piece.photoMimeType || media.contentType || "image/jpeg",
+        };
+      }
+    }
+    return null;
+  }
+
+  const root = await getStorageRoot();
 
   if (kind === "audio") {
     if (piece.audioFileName) {
@@ -321,26 +434,49 @@ export async function getPieceMediaBuffer(
 }
 
 export async function listPieces(): Promise<PieceRecord[]> {
-  const root = await getStorageRoot();
-  const piecesDir = path.join(root, "pieces");
   const records: PieceRecord[] = [];
 
-  try {
-    const entries = await fs.readdir(piecesDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      try {
-        const raw = await fs.readFile(
-          path.join(piecesDir, entry.name, "piece.json"),
-          "utf-8"
-        );
-        records.push(JSON.parse(raw) as PieceRecord);
-      } catch {
-        // Ignora carpetas incompletas
+  if (isVercelBlobEnabled()) {
+    try {
+      const { blobs } = await list({ prefix: "pieces/" });
+      const jsonBlobs = blobs.filter((b) => b.pathname.endsWith("/piece.json"));
+      const loaded = await Promise.all(
+        jsonBlobs.map(async (b) => {
+          const res = await readPrivateBlobBuffer(b.pathname);
+          if (!res) return null;
+          try {
+            return JSON.parse(res.buffer.toString("utf-8")) as PieceRecord;
+          } catch {
+            return null;
+          }
+        })
+      );
+      for (const item of loaded) {
+        if (item) records.push(item);
       }
+    } catch {
+      // Fallback a seeds si el blob está vacío o inicializando
     }
-  } catch {
-    // Sin piezas creadas aún
+  } else {
+    const root = await getStorageRoot();
+    const piecesDir = path.join(root, "pieces");
+    try {
+      const entries = await fs.readdir(piecesDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        try {
+          const raw = await fs.readFile(
+            path.join(piecesDir, entry.name, "piece.json"),
+            "utf-8"
+          );
+          records.push(JSON.parse(raw) as PieceRecord);
+        } catch {
+          // Ignora carpetas incompletas
+        }
+      }
+    } catch {
+      // Sin piezas creadas aún
+    }
   }
 
   const existingIds = new Set(records.map((r) => r.id));
@@ -356,6 +492,47 @@ export async function listPieces(): Promise<PieceRecord[]> {
 export async function appendSupportReceipt(
   receipt: SupportReceiptRecord
 ): Promise<void> {
+  if (isVercelBlobEnabled()) {
+    await put(
+      `receipts/${receipt.txHash}.json`,
+      JSON.stringify(receipt, null, 2),
+      {
+        access: "private",
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        contentType: "application/json",
+      }
+    );
+
+    const piece = await getPieceById(receipt.pieceId);
+    if (piece && !piece.isDemoSeed) {
+      piece.supports = [receipt, ...(piece.supports || [])];
+      await put(
+        `pieces/${piece.id}/piece.json`,
+        JSON.stringify(piece, null, 2),
+        {
+          access: "private",
+          addRandomSuffix: false,
+          allowOverwrite: true,
+          contentType: "application/json",
+        }
+      );
+    } else if (piece && piece.isDemoSeed) {
+      const seedAudio =
+        DEMO_SEEDS[piece.id]?.().audio || generateSeedDemoWavBuffer();
+      await savePieceWithMedia({
+        record: {
+          ...piece,
+          isDemoSeed: false,
+          supports: [receipt, ...(piece.supports || [])],
+        },
+        audioBuffer: seedAudio,
+        audioExt: "wav",
+      });
+    }
+    return;
+  }
+
   const root = await getStorageRoot();
   const receiptPath = path.join(root, "receipts", `${receipt.txHash}.json`);
   await fs.writeFile(receiptPath, JSON.stringify(receipt, null, 2), "utf-8");
@@ -370,7 +547,6 @@ export async function appendSupportReceipt(
       "utf-8"
     );
   } else if (piece && piece.isDemoSeed) {
-    // Si apoyan una pieza demo seed, persistimos su ficha con el nuevo recibo
     const seedAudio = DEMO_SEEDS[piece.id]?.().audio || generateSeedDemoWavBuffer();
     await savePieceWithMedia({
       record: {
@@ -387,6 +563,16 @@ export async function appendSupportReceipt(
 export async function getLocalReceiptByHash(
   txHash: string
 ): Promise<SupportReceiptRecord | null> {
+  if (isVercelBlobEnabled()) {
+    const blobData = await readPrivateBlobBuffer(`receipts/${txHash}.json`);
+    if (!blobData) return null;
+    try {
+      return JSON.parse(blobData.buffer.toString("utf-8")) as SupportReceiptRecord;
+    } catch {
+      return null;
+    }
+  }
+
   const root = await getStorageRoot();
   try {
     const raw = await fs.readFile(
